@@ -1,5 +1,0 @@
-pylint
-pytest
-black
-requests
-tinydb
