@@ -7,7 +7,13 @@ authors = [
     { name = "M.Mezni", email = "mamezni@gmail.com" }
 ]
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "PyYAML",
+    "pydantic-settings"
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
 
 [project.scripts]
 rag = "rag:main"
