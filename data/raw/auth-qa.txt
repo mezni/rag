@@ -1,4 +1,0 @@
-Question: Do access tokens expire?
-
-Answer: Yes. Access tokens are valid for 15 minutes and refresh tokens for 90
-days. Refresh tokens are rotating: each refresh invalidates the previous one.

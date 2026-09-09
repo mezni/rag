@@ -1,7 +1,0 @@
-pipeline:
-  name: "Document Processing Pipeline"
-
-runtime:
-  chunk_size: 512
-  chunk_overlap: 50
-  max_document_size: 1048576 # 1 MB in bytes
