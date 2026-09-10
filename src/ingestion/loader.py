@@ -4,23 +4,13 @@ against persisted state. No Stage or pipeline-context imports.
 """
 from __future__ import annotations
 
-import hashlib
 from datetime import datetime, timezone
 from pathlib import Path
 
 from pydantic import BaseModel
 
+from src.ingestion.hashing import hash_file
 from src.models.pipeline_context import FileRecord, FileStatus, PipelineState
-
-_CHUNK_SIZE = 64 * 1024
-
-
-def _hash_file(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        while chunk := handle.read(_CHUNK_SIZE):
-            digest.update(chunk)
-    return digest.hexdigest()
 
 
 class LoaderResult(BaseModel):
@@ -53,7 +43,7 @@ class Loader(BaseModel):
             if not path.is_file():
                 continue
             rel = path.relative_to(input_dir).as_posix()
-            current_hash = _hash_file(path)
+            current_hash = hash_file(path)
             stat = path.stat()
             seen.add(rel)
             scanned += 1
