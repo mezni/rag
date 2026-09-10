@@ -8,7 +8,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from src.pipeline.pipeline import Pipeline
-from src.pipeline.stages import LoaderStage, LoggingStage, ParserStage
+from src.pipeline.stages import CleanerStage, LoaderStage, LoggingStage, ParserStage
 from src.pipeline.state_store import StateStore
 
 
@@ -45,6 +45,7 @@ def main() -> None:
         LoggingStage(),
         LoaderStage(),
         ParserStage(),
+        CleanerStage(),
     ]
 
     pipeline = Pipeline(

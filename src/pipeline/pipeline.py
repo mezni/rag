@@ -119,7 +119,6 @@ class Pipeline(BaseModel):
             logger.info("first run: no previous state to diff")
             return
         state = context.state
-        output_dir = Path(context.run.output_dir) if context.run.output_dir else None
 
         new_records = changed_records = unchanged_records = 0
         deleted_records: list[str] = []
@@ -137,6 +136,7 @@ class Pipeline(BaseModel):
                 ):
                     deleted_records.append(rel)
 
+        output_dir = Path(context.run.output_dir) if context.run.output_dir else None
         for rel in deleted_records:
             if output_dir is None:
                 logger.info(f"[diff] deleted: {rel} (mark for removal)")

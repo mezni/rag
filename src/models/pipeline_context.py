@@ -55,6 +55,7 @@ class PipelineRun(BaseModel):
     files_unchanged: int = 0
     files_deleted: int = 0
     files_sent_downstream: int = 0
+    files_cleaned: int = 0
     # per-stage timing/counts, filled in by the Pipeline engine automatically
     stage_timings_seconds: dict[str, float] = Field(default_factory=dict)
 
