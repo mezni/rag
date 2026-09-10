@@ -134,7 +134,7 @@ class Pipeline(BaseModel):
             if output_dir is None:
                 logger.info(f"[diff] deleted: {rel} (mark for removal)")
                 continue
-            for suffix in (".txt", ".md"):
+            for suffix in (".txt", ".md", ".chunks.json"):
                 artifact = output_dir / Path(rel).with_suffix(suffix)
                 if not artifact.exists() and not any(
                     artifact.parent.glob(artifact.stem + ".v*" + suffix)

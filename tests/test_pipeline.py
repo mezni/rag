@@ -195,8 +195,10 @@ def test_deleted_files_have_artifacts_removed(tmp_path) -> None:
     (processed / "a.v1.txt").write_text("older content", encoding="utf-8")
     (processed / "a.md").write_text("old content", encoding="utf-8")
     (processed / "a.v1.md").write_text("older content", encoding="utf-8")
+    (processed / "a.chunks.json").write_text('{"chunks": []}', encoding="utf-8")
     assert (processed / "a.txt").exists()
     assert (processed / "a.md").exists()
+    assert (processed / "a.chunks.json").exists()
 
     state_path = tmp_path / "state.json"
     pipeline = Pipeline(
@@ -215,3 +217,4 @@ def test_deleted_files_have_artifacts_removed(tmp_path) -> None:
     assert not (processed / "a.v1.txt").exists()
     assert not (processed / "a.md").exists()
     assert not (processed / "a.v1.md").exists()
+    assert not (processed / "a.chunks.json").exists()

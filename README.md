@@ -19,6 +19,7 @@ mutate the `PipelineContext` passed between them (see `src/pipeline/stage.py`).
 | `logging`        | Pass-through observability: logs how many files were known and their statuses before this run.        |
 | `loader`         | Scans `input_dir` and classifies each file against the previous run (`NEW`/`UPDATED`/`UNCHANGED`/`DELETED`). Mirrors directories into the output dir but never copies files. |
 | `parser`         | Extracts raw text from PDFs via llama-index. Writes `<stem>.txt` and versions it: v1 on first parse, then increments on every modification (old text archived as `<stem>.vN.txt`). Remembers files containing no usable text but does not pass them downstream. |
+| `chunker`        | Splits each parsed text into fixed-size, sentence-aligned chunks with llama-index's `SentenceSplitter` (default 512 tokens, 64 overlap). Writes `<stem>.chunks.json` (source, version, chunk ids, text) for later embedding/indexing. |
 | `cleaner`        | Converts each `.txt` into markdown with the `markitdown` library. The text is fed in as HTML so embedded `<b>…</b>` labels become real markdown (`**…**`) instead of leaking through. Writes `<stem>.md` in the same directory. |
 
 ## State model (`data/state/state.json`)
@@ -40,6 +41,7 @@ single file doubles as history and diff baseline (no `state_last.json`).
       "files_scanned": 12, "files_new": 12, "files_updated": 0,
       "files_unchanged": 0, "files_deleted": 0, "files_sent_downstream": 12,
       "files_cleaned": 12,
+      "files_chunked": 12,
       "stage_timings_seconds": { "logging": 0.0, "loader": 0.08, ... },
       "files": {
         "docs/doc.pdf": {
@@ -74,6 +76,9 @@ src/ingestion/               pure domain logic (no Stage/pipeline imports)
   parser.py                  PDF → text, versioning
   cleaner.py                 markitdown conversion, markdown output
   hashing.py                 file hashing
+src/chunking/                 chunking domain logic + its stage
+  chunker.py                 llama-index SentenceSplitter → <.chunks.json>
+  chunker_stage.py           orchestrates the chunker over parser output
 src/models/pipeline_context.py   data contracts (FileRecord, PipelineRun, …)
 src/pipeline/
   pipeline.py                engine: loop, timing, identity guards, failure handling

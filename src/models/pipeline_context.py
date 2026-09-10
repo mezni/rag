@@ -59,6 +59,7 @@ class PipelineRun(BaseModel):
     files_deleted: int = 0
     files_sent_downstream: int = 0
     files_cleaned: int = 0
+    files_chunked: int = 0
     # File records as known at the end of this run, keyed by relative
     # path. Every run snapshots the full file set (NEW/UPDATED/UNCHANGED
     # for files present, DELETED for ones that disappeared).
