@@ -46,6 +46,9 @@ def parse_file(path: str | Path) -> str:
 
 
 class Parser:
+    def __init__(self, output_dir: str | Path | None = None):
+        self.output_dir = Path(output_dir) if output_dir else None
+
     def parse_one(self, record: FileRecord) -> FileRecord:
         record.last_processed_at = datetime.now(timezone.utc)
         try:
@@ -53,9 +56,29 @@ class Parser:
         except (UnsupportedFormatError, ParseError) as exc:
             logger.warning(f"parser: skipped {record.path}: {exc}")
             record.stage_outputs["parser"] = {"error": str(exc)}
-        else:
-            record.stage_outputs["parser"] = {"content": content}
+            return record
+        output = {"content": content}
+        if self.output_dir is not None and content.strip():
+            rel = Path(record.path)
+            dest = self.output_dir / rel.parent / f"{rel.stem}.md"
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            self._write_versioned(dest, content, output)
+        record.stage_outputs["parser"] = output
         return record
+
+    @staticmethod
+    def _write_versioned(dest: Path, content: str, output: dict) -> None:
+        old = dest.read_text(encoding="utf-8") if dest.exists() else None
+        if old is not None and old != content:
+            version = dest.with_name(f"{dest.stem}.v1.md")
+            index = 1
+            while version.exists():
+                index += 1
+                version = dest.with_name(f"{dest.stem}.v{index}.md")
+            version.write_text(old, encoding="utf-8")
+            output["previous_version"] = str(version)
+        dest.write_text(content, encoding="utf-8")
+        output["processed_path"] = str(dest)
 
     def run(self, records: list[FileRecord]) -> list[FileRecord]:
         return [self.parse_one(r) for r in records]

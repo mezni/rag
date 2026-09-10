@@ -13,11 +13,17 @@ from __future__ import annotations
 import time
 import uuid
 from datetime import datetime, timezone
+from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict, field_validator
 
 from src.config.logger import get_logger
-from src.models.pipeline_context import PipelineContext, PipelineRun, PipelineState
+from src.models.pipeline_context import (
+    FileStatus,
+    PipelineContext,
+    PipelineRun,
+    PipelineState,
+)
 from src.pipeline.stage import Stage
 from src.pipeline.state_store import StateStore
 
@@ -47,7 +53,12 @@ class Pipeline(BaseModel):
         return stages
 
     def run(self, input_dir: str, output_dir: str | None = None) -> PipelineContext:
+        first_run = not self.state_store.has_state()
         state = self.state_store.load()
+        previous = state.model_copy(deep=True) if not first_run else None
+        if previous is not None:
+            self.state_store.save_last(previous)
+
         run = PipelineRun(
             run_id=str(uuid.uuid4()),
             started_at=datetime.now(timezone.utc),
@@ -87,6 +98,7 @@ class Pipeline(BaseModel):
                     "the existing run in place"
                 )
             run.finished_at = datetime.now(timezone.utc)
+            self._finalize(context, previous)
             self._persist(state)
         except Exception:
             run.failed = True
@@ -101,6 +113,48 @@ class Pipeline(BaseModel):
             f"unchanged={run.files_unchanged} deleted={run.files_deleted}"
         )
         return context
+
+    def _finalize(self, context: PipelineContext, previous: PipelineState | None) -> None:
+        if previous is None:
+            logger.info("first run: no previous state to diff")
+            return
+        state = context.state
+        output_dir = Path(context.run.output_dir) if context.run.output_dir else None
+
+        new_records = changed_records = unchanged_records = 0
+        deleted_records: list[str] = []
+        for rel, record in state.files.items():
+            if record.status is FileStatus.NEW:
+                new_records += 1
+            elif record.status is FileStatus.UPDATED:
+                changed_records += 1
+            elif record.status is FileStatus.UNCHANGED:
+                unchanged_records += 1
+            else:
+                previous_status = previous.files.get(rel)
+                if previous_status is not None and (
+                    previous_status.status is not FileStatus.DELETED
+                ):
+                    deleted_records.append(rel)
+
+        for rel in deleted_records:
+            if output_dir is None:
+                logger.info(f"[diff] deleted: {rel} (mark for removal)")
+                continue
+            artifact = output_dir / Path(rel).with_suffix(".md")
+            if artifact.exists():
+                artifact.unlink()
+                logger.info(f"[diff] deleted: removed processed artifact {artifact}")
+            else:
+                logger.info(f"[diff] deleted: {rel} (no processed artifact)")
+            for version in artifact.parent.glob(f"{artifact.stem}.v*.md"):
+                version.unlink()
+                logger.info(f"[diff] deleted: removed version archive {version}")
+
+        logger.info(
+            f"[diff] vs previous run: new={new_records} changed={changed_records} "
+            f"unchanged={unchanged_records} deleted={len(deleted_records)}"
+        )
 
     def _persist(self, state: PipelineState) -> None:
         if self.max_runs and len(state.runs) > self.max_runs:

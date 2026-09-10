@@ -1,14 +1,12 @@
 """
-Thin orchestration stage: scans input_dir via the Loader, runs the
-Parser over the files it discovered, and wires the result back into
-the pipeline context. All substantive logic lives in
-src/ingestion/loader.py and src/ingestion/parser.py.
+Thin orchestration stage: scans input_dir via the Loader and wires
+the result back into the pipeline context. All substantive logic lives
+in src/ingestion/loader.py.
 """
 from __future__ import annotations
 
 from src.config.logger import get_logger
 from src.ingestion.loader import Loader
-from src.ingestion.parser import Parser
 from src.models.pipeline_context import PipelineContext
 from src.pipeline.stage import Stage
 
@@ -31,7 +29,7 @@ class LoaderStage(Stage):
         result = loader.run(context.state)
 
         context.state = result.state
-        context.files_to_process = Parser().run(result.files_to_process)
+        context.files_to_process = result.files_to_process
 
         run.files_scanned = result.scanned
         run.files_new = result.new

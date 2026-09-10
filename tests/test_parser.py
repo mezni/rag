@@ -14,6 +14,7 @@ from src.models.pipeline_context import FileRecord
 
 
 def _build_pdf(path: Path, text: str = "Hello PDF") -> Path:
+    path.parent.mkdir(parents=True, exist_ok=True)
     stream = b"BT /F1 24 Tf 100 700 Td (" + text.encode() + b") Tj ET"
     objects = [
         b"<< /Type /Catalog /Pages 2 0 R >>",
@@ -109,3 +110,62 @@ def test_parser_run_processes_all_records(tmp_path: Path) -> None:
 
     assert len(records) == 2
     assert all("content" in record.stage_outputs["parser"] for record in records)
+
+
+def test_parser_writes_text_to_output_dir(tmp_path: Path) -> None:
+    path = _build_pdf(tmp_path / "docs" / "doc.pdf")
+    record = FileRecord(
+        path="docs/doc.pdf",
+        absolute_path=str(path),
+        size_bytes=path.stat().st_size,
+        hash="unused",
+        mtime=1.0,
+        first_seen_at=datetime.now(timezone.utc),
+        last_seen_at=datetime.now(timezone.utc),
+    )
+    output = tmp_path / "processed"
+
+    Parser(output_dir=output).parse_one(record)
+
+    dest = output / "docs" / "doc.md"
+    assert dest.parent.is_dir()
+    assert "Hello PDF" in dest.read_text(encoding="utf-8")
+    assert record.stage_outputs["parser"]["processed_path"] == str(dest)
+
+
+def test_parser_skips_write_when_no_text(tmp_path: Path) -> None:
+    path = tmp_path / "bad.pdf"
+    path.write_bytes(b"not a real pdf")
+    record = _make_record(path)
+    output = tmp_path / "processed"
+
+    Parser(output_dir=output).parse_one(record)
+
+    assert not (output / "bad.md").exists()
+
+
+def test_parser_versions_changed_output(tmp_path: Path) -> None:
+    path = _build_pdf(tmp_path / "docs" / "doc.pdf", "first text")
+    output = tmp_path / "processed"
+
+    def record() -> FileRecord:
+        return FileRecord(
+            path="docs/doc.pdf",
+            absolute_path=str(path),
+            size_bytes=path.stat().st_size,
+            hash="unused",
+            mtime=1.0,
+            first_seen_at=datetime.now(timezone.utc),
+            last_seen_at=datetime.now(timezone.utc),
+        )
+
+    Parser(output_dir=output).parse_one(record())
+    _build_pdf(tmp_path / "docs" / "doc.pdf", "second text")
+    result = Parser(output_dir=output).parse_one(record())
+
+    dest = output / "docs" / "doc.md"
+    assert "second text" in dest.read_text(encoding="utf-8")
+    assert "first text" in (output / "docs" / "doc.v1.md").read_text(encoding="utf-8")
+    assert result.stage_outputs["parser"]["previous_version"] == str(
+        output / "docs" / "doc.v1.md"
+    )
