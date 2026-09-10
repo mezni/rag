@@ -20,11 +20,12 @@ class LoggingStage(Stage):
 
     def run(self, context: PipelineContext) -> PipelineContext:
         run = context.run
-        files = context.state.files
+        runs = context.state.runs
+        previous_files = runs[-2].files if len(runs) > 1 else {}
         logger.info(
             f"[logging] run={run.run_id} input_dir={run.input_dir} "
-            f"known_files={len(files)}"
+            f"known_files={len(previous_files)}"
         )
-        for status, count in Counter(f.status for f in files.values()).items():
+        for status, count in Counter(f.status for f in previous_files.values()).items():
             logger.info(f"[logging]   {status.value:9s} {count}")
         return context

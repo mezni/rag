@@ -38,8 +38,8 @@ class RecordingStage(Stage):
         context.run.files_scanned = 1
         context.run.files_new = 1
         context.run.files_sent_downstream = 1
-        context.state.files["a.md"] = _make_file()
-        context.files_to_process = [context.state.files["a.md"]]
+        context.run.files["a.md"] = _make_file()
+        context.files_to_process = [context.run.files["a.md"]]
         return context
 
 
@@ -95,8 +95,8 @@ def test_run_persists_state_and_counts(tmp_path) -> None:
     assert ctx.run.failed is False
 
     state = pipeline.state_store.load()
-    assert "a.md" in state.files
-    assert state.files["a.md"].status is FileStatus.NEW
+    assert "a.md" in state.last_run().files
+    assert state.last_run().files["a.md"].status is FileStatus.NEW
     assert state.last_run().run_id == ctx.run.run_id
 
 
@@ -143,7 +143,7 @@ def test_state_store_round_trip(tmp_path) -> None:
     pipeline = _make_pipeline(tmp_path, [RecordingStage()])
     pipeline.run("/tmp/in")
     loaded = store.load()
-    assert loaded.files["a.md"].size_bytes == 3
+    assert loaded.last_run().files["a.md"].size_bytes == 3
     assert loaded.last_run() is not None
 
 
@@ -154,23 +154,20 @@ def test_state_store_load_default_for_missing_file(tmp_path) -> None:
     assert state.runs == []
 
 
-def test_second_run_snapshots_previous_state(tmp_path) -> None:
+def test_runs_each_snapshot_their_files(tmp_path) -> None:
     pipeline = _make_pipeline(tmp_path, [RecordingStage()])
     first = pipeline.run("/tmp/in")
     second = pipeline.run("/tmp/in")
 
+    assert first.run.files["a.md"].status is FileStatus.NEW
+    assert second.run.files["a.md"].status is FileStatus.NEW
     store = pipeline.state_store
     assert store.has_state() is True
-    last = store.load_last()
-    assert last is not None
-    assert last.last_run().run_id == first.run.run_id
-    assert store.load().last_run().run_id == second.run.run_id
-
-
-def test_missing_last_state_loads_none(tmp_path) -> None:
-    store = StateStore(tmp_path / "state.json")
-    assert store.load_last() is None
-    assert store.last_path.name == "state_last.json"
+    runs = store.load().runs
+    assert [r.run_id for r in runs] == [first.run.run_id, second.run.run_id]
+    assert "a.md" in runs[0].files
+    assert "a.md" in runs[1].files
+    assert not store.state_path.with_name("state_last.json").exists()
 
 
 class DeleteCycleStage(Stage):
@@ -186,34 +183,35 @@ class DeleteCycleStage(Stage):
             record.status = FileStatus.NEW
         else:
             record.status = FileStatus.DELETED
-        context.state.files["a.md"] = record
+        context.run.files["a.md"] = record
         context.files_to_process = [] if self.n == 2 else [record]
         return context
 
 
 def test_deleted_files_have_artifacts_removed(tmp_path) -> None:
-    artifact = tmp_path / "processed" / "a.md"
-    artifact.parent.mkdir(parents=True, exist_ok=True)
-    artifact.write_text("old content", encoding="utf-8")
-    version = tmp_path / "processed" / "a.v1.md"
-    version.write_text("older content", encoding="utf-8")
-    assert artifact.exists()
-    assert version.exists()
+    processed = tmp_path / "processed"
+    processed.mkdir(parents=True, exist_ok=True)
+    (processed / "a.txt").write_text("old content", encoding="utf-8")
+    (processed / "a.v1.txt").write_text("older content", encoding="utf-8")
+    (processed / "a.md").write_text("old content", encoding="utf-8")
+    (processed / "a.v1.md").write_text("older content", encoding="utf-8")
+    assert (processed / "a.txt").exists()
+    assert (processed / "a.md").exists()
 
     state_path = tmp_path / "state.json"
     pipeline = Pipeline(
         stages=[DeleteCycleStage()],
         state_store=StateStore(state_path),
     )
-    pipeline.run("/tmp/in", output_dir=str(tmp_path / "processed"))
+    pipeline.run("/tmp/in", output_dir=str(processed))
 
-    previous = state_path.with_name("state_last.json")
-    assert not previous.exists()
+    assert not state_path.with_name("state_last.json").exists()
 
-    pipeline.run("/tmp/in", output_dir=str(tmp_path / "processed"))
-    assert previous.exists()
+    pipeline.run("/tmp/in", output_dir=str(processed))
 
     store = pipeline.state_store.load()
-    assert store.files["a.md"].status is FileStatus.DELETED
-    assert not artifact.exists()
-    assert not version.exists()
+    assert store.last_run().files["a.md"].status is FileStatus.DELETED
+    assert not (processed / "a.txt").exists()
+    assert not (processed / "a.v1.txt").exists()
+    assert not (processed / "a.md").exists()
+    assert not (processed / "a.v1.md").exists()

@@ -1,6 +1,7 @@
 """
 Pure domain logic for scanning an input dir and classifying files
-against persisted state. No Stage or pipeline-context imports.
+against the previous run's file records. No Stage or pipeline-context
+imports.
 """
 from __future__ import annotations
 
@@ -10,12 +11,12 @@ from pathlib import Path
 from pydantic import BaseModel
 
 from src.ingestion.hashing import hash_file
-from src.models.pipeline_context import FileRecord, FileStatus, PipelineState
+from src.models.pipeline_context import FileRecord, FileStatus
 
 
 class LoaderResult(BaseModel):
     files_to_process: list[FileRecord]
-    state: PipelineState
+    files: dict[str, FileRecord]
     scanned: int = 0
     new: int = 0
     updated: int = 0
@@ -28,13 +29,13 @@ class Loader(BaseModel):
     glob_pattern: str = "**/*"
     output_dir: Path | None = None
 
-    def run(self, state: PipelineState) -> LoaderResult:
+    def run(self, previous_files: dict[str, FileRecord]) -> LoaderResult:
         input_dir = self.input_dir
         if not input_dir.is_dir():
             raise ValueError(f"input dir does not exist: {input_dir}")
 
-        known = state.files
         now = datetime.now(timezone.utc)
+        files: dict[str, FileRecord] = {}
         to_process: list[FileRecord] = []
 
         scanned = new = updated = unchanged = deleted = 0
@@ -53,8 +54,8 @@ class Loader(BaseModel):
                 rel_dir = path.relative_to(input_dir).parent
                 (self.output_dir / rel_dir).mkdir(parents=True, exist_ok=True)
 
-            record = known.get(rel)
-            if record is None:
+            previous = previous_files.get(rel)
+            if previous is None:
                 record = FileRecord(
                     path=rel,
                     absolute_path=str(path),
@@ -63,34 +64,39 @@ class Loader(BaseModel):
                     mtime=stat.st_mtime,
                     first_seen_at=now,
                     last_seen_at=now,
+                    status=FileStatus.NEW,
                 )
-                record.status = FileStatus.NEW
-                known[rel] = record
                 new += 1
-            elif record.hash != current_hash or record.mtime != stat.st_mtime:
-                record.absolute_path = str(path)
+            elif previous.hash != current_hash or previous.mtime != stat.st_mtime:
+                record = previous.model_copy(deep=True)
                 record.size_bytes = stat.st_size
+                record.absolute_path = str(path)
                 record.hash = current_hash
                 record.mtime = stat.st_mtime
                 record.last_seen_at = now
                 record.status = FileStatus.UPDATED
                 updated += 1
             else:
+                record = previous.model_copy(deep=True)
                 record.last_seen_at = now
                 record.status = FileStatus.UNCHANGED
                 unchanged += 1
 
+            files[rel] = record
             if record.status in (FileStatus.NEW, FileStatus.UPDATED):
                 to_process.append(record)
 
-        for rel in list(known):
-            if rel not in seen:
-                known[rel].status = FileStatus.DELETED
-                deleted += 1
+        for rel, previous in previous_files.items():
+            if rel in seen:
+                continue
+            record = previous.model_copy(deep=True)
+            record.status = FileStatus.DELETED
+            files[rel] = record
+            deleted += 1
 
         return LoaderResult(
             files_to_process=to_process,
-            state=state,
+            files=files,
             scanned=scanned,
             new=new,
             updated=updated,

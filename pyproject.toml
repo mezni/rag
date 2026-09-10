@@ -5,6 +5,7 @@ requires-python = ">=3.12"
 dependencies = [
     "llama-index-core>=0.14.24",
     "llama-index-readers-file>=0.7.0",
+    "markitdown>=0.1.7",
     "pydantic>=2.13.5",
 ]
 

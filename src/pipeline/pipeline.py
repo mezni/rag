@@ -14,6 +14,7 @@ import time
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, field_validator
 
@@ -53,11 +54,8 @@ class Pipeline(BaseModel):
         return stages
 
     def run(self, input_dir: str, output_dir: str | None = None) -> PipelineContext:
-        first_run = not self.state_store.has_state()
         state = self.state_store.load()
-        previous = state.model_copy(deep=True) if not first_run else None
-        if previous is not None:
-            self.state_store.save_last(previous)
+        previous_files = state.last_run().files if state.runs else {}
 
         run = PipelineRun(
             run_id=str(uuid.uuid4()),
@@ -98,7 +96,7 @@ class Pipeline(BaseModel):
                     "the existing run in place"
                 )
             run.finished_at = datetime.now(timezone.utc)
-            self._finalize(context, previous)
+            self._finalize(context, previous_files)
             self._persist(state)
         except Exception:
             run.failed = True
@@ -114,47 +112,40 @@ class Pipeline(BaseModel):
         )
         return context
 
-    def _finalize(self, context: PipelineContext, previous: PipelineState | None) -> None:
-        if previous is None:
-            logger.info("first run: no previous state to diff")
+    def _finalize(self, context: PipelineContext, previous_files: dict[str, Any]) -> None:
+        if not previous_files:
+            logger.info("first run: nothing to clean up from a previous run")
             return
-        state = context.state
+        run = context.run
+        output_dir = Path(run.output_dir) if run.output_dir else None
 
-        new_records = changed_records = unchanged_records = 0
-        deleted_records: list[str] = []
-        for rel, record in state.files.items():
-            if record.status is FileStatus.NEW:
-                new_records += 1
-            elif record.status is FileStatus.UPDATED:
-                changed_records += 1
-            elif record.status is FileStatus.UNCHANGED:
-                unchanged_records += 1
-            else:
-                previous_status = previous.files.get(rel)
-                if previous_status is not None and (
-                    previous_status.status is not FileStatus.DELETED
-                ):
-                    deleted_records.append(rel)
+        newly_deleted = [
+            rel
+            for rel, record in run.files.items()
+            if record.status is FileStatus.DELETED
+            and previous_files.get(rel) is not None
+            and previous_files[rel].status is not FileStatus.DELETED
+        ]
 
-        output_dir = Path(context.run.output_dir) if context.run.output_dir else None
-        for rel in deleted_records:
+        for rel in newly_deleted:
             if output_dir is None:
                 logger.info(f"[diff] deleted: {rel} (mark for removal)")
                 continue
-            artifact = output_dir / Path(rel).with_suffix(".md")
-            if artifact.exists():
-                artifact.unlink()
-                logger.info(f"[diff] deleted: removed processed artifact {artifact}")
-            else:
-                logger.info(f"[diff] deleted: {rel} (no processed artifact)")
-            for version in artifact.parent.glob(f"{artifact.stem}.v*.md"):
-                version.unlink()
-                logger.info(f"[diff] deleted: removed version archive {version}")
+            for suffix in (".txt", ".md"):
+                artifact = output_dir / Path(rel).with_suffix(suffix)
+                if not artifact.exists() and not any(
+                    artifact.parent.glob(artifact.stem + ".v*" + suffix)
+                ):
+                    continue
+                if artifact.exists():
+                    artifact.unlink()
+                    logger.info(f"[diff] deleted: removed {artifact}")
+                for version in artifact.parent.glob(artifact.stem + ".v*" + suffix):
+                    version.unlink()
+                    logger.info(f"[diff] deleted: removed version {version}")
 
-        logger.info(
-            f"[diff] vs previous run: new={new_records} changed={changed_records} "
-            f"unchanged={unchanged_records} deleted={len(deleted_records)}"
-        )
+        if newly_deleted:
+            logger.info(f"[diff] {len(newly_deleted)} file(s) deleted this run")
 
     def _persist(self, state: PipelineState) -> None:
         if self.max_runs and len(state.runs) > self.max_runs:

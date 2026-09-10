@@ -31,6 +31,8 @@ class FileRecord(BaseModel):
     last_seen_at: datetime
     last_processed_at: datetime | None = None
     status: FileStatus = FileStatus.NEW
+    # increments each time the file is processed (v1 on first parse)
+    version: int = 0
 
     # Each stage after parsing writes its own key here rather than
     # sharing one blob — keeps provenance traceable.
@@ -56,6 +58,10 @@ class PipelineRun(BaseModel):
     files_deleted: int = 0
     files_sent_downstream: int = 0
     files_cleaned: int = 0
+    # File records as known at the end of this run, keyed by relative
+    # path. Every run snapshots the full file set (NEW/UPDATED/UNCHANGED
+    # for files present, DELETED for ones that disappeared).
+    files: dict[str, FileRecord] = Field(default_factory=dict)
     # per-stage timing/counts, filled in by the Pipeline engine automatically
     stage_timings_seconds: dict[str, float] = Field(default_factory=dict)
 
@@ -64,7 +70,6 @@ class PipelineState(BaseModel):
     """The full persisted state of the pipeline. Loaded/saved each run."""
 
     version: int = 1
-    files: dict[str, FileRecord] = Field(default_factory=dict)
     runs: list[PipelineRun] = Field(default_factory=list)
 
     def last_run(self) -> PipelineRun | None:

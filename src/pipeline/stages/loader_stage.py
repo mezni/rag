@@ -1,7 +1,7 @@
 """
 Thin orchestration stage: scans input_dir via the Loader and wires
-the result back into the pipeline context. All substantive logic lives
-in src/ingestion/loader.py.
+the result back into the pipeline context's current run. All
+substantive logic lives in src/ingestion/loader.py.
 """
 from __future__ import annotations
 
@@ -21,16 +21,17 @@ class LoaderStage(Stage):
 
     def run(self, context: PipelineContext) -> PipelineContext:
         run = context.run
+        runs = context.state.runs
+        previous_files = runs[-2].files if len(runs) > 1 else {}
         loader = Loader(
             input_dir=run.input_dir,
             glob_pattern=self.glob_pattern,
             output_dir=run.output_dir or None,
         )
-        result = loader.run(context.state)
+        result = loader.run(previous_files)
 
-        context.state = result.state
         context.files_to_process = result.files_to_process
-
+        run.files = result.files
         run.files_scanned = result.scanned
         run.files_new = result.new
         run.files_updated = result.updated

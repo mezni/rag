@@ -58,25 +58,26 @@ class Parser:
             record.stage_outputs["parser"] = {"error": str(exc)}
             return record
         output = {"content": content}
-        if self.output_dir is not None and content.strip():
-            rel = Path(record.path)
-            dest = self.output_dir / rel.parent / f"{rel.stem}.md"
-            dest.parent.mkdir(parents=True, exist_ok=True)
-            self._write_versioned(dest, content, output)
+        if content.strip():
+            version = record.version + 1
+            record.version = version
+            output["version"] = version
+            if self.output_dir is not None:
+                rel = Path(record.path)
+                dest = self.output_dir / rel.parent / f"{rel.stem}.txt"
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                self._write_versioned(dest, content, version, output)
         record.stage_outputs["parser"] = output
         return record
 
     @staticmethod
-    def _write_versioned(dest: Path, content: str, output: dict) -> None:
-        old = dest.read_text(encoding="utf-8") if dest.exists() else None
-        if old is not None and old != content:
-            version = dest.with_name(f"{dest.stem}.v1.md")
-            index = 1
-            while version.exists():
-                index += 1
-                version = dest.with_name(f"{dest.stem}.v{index}.md")
-            version.write_text(old, encoding="utf-8")
-            output["previous_version"] = str(version)
+    def _write_versioned(dest: Path, content: str, version: int, output: dict) -> None:
+        if dest.exists():
+            old = dest.read_text(encoding="utf-8")
+            if old != content:
+                archive = dest.with_name(f"{dest.stem}.v{version - 1}{dest.suffix}")
+                archive.write_text(old, encoding="utf-8")
+                output["previous_version"] = str(archive)
         dest.write_text(content, encoding="utf-8")
         output["processed_path"] = str(dest)
 

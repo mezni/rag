@@ -58,7 +58,6 @@ def test_file_record_requires_core_fields() -> None:
 def test_pipeline_state_defaults() -> None:
     state = PipelineState()
     assert state.version == 1
-    assert state.files == {}
     assert state.runs == []
     assert state.last_run() is None
 
@@ -75,6 +74,7 @@ def test_pipeline_run_defaults() -> None:
     assert run.finished_at is None
     assert run.failed is False
     assert run.files_scanned == 0
+    assert run.files == {}
     assert run.stage_timings_seconds == {}
 
 

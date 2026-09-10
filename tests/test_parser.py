@@ -90,6 +90,8 @@ def test_parser_parse_one_writes_content(tmp_path: Path) -> None:
     assert result is record
     assert record.last_processed_at is not None
     assert "Hello PDF" in record.stage_outputs["parser"]["content"]
+    assert record.stage_outputs["parser"]["version"] == 1
+    assert record.version == 1
 
 
 def test_parser_parse_one_records_error(tmp_path: Path) -> None:
@@ -127,7 +129,7 @@ def test_parser_writes_text_to_output_dir(tmp_path: Path) -> None:
 
     Parser(output_dir=output).parse_one(record)
 
-    dest = output / "docs" / "doc.md"
+    dest = output / "docs" / "doc.txt"
     assert dest.parent.is_dir()
     assert "Hello PDF" in dest.read_text(encoding="utf-8")
     assert record.stage_outputs["parser"]["processed_path"] == str(dest)
@@ -141,14 +143,14 @@ def test_parser_skips_write_when_no_text(tmp_path: Path) -> None:
 
     Parser(output_dir=output).parse_one(record)
 
-    assert not (output / "bad.md").exists()
+    assert not (output / "bad.txt").exists()
 
 
 def test_parser_versions_changed_output(tmp_path: Path) -> None:
     path = _build_pdf(tmp_path / "docs" / "doc.pdf", "first text")
     output = tmp_path / "processed"
 
-    def record() -> FileRecord:
+    def record(version: int = 0) -> FileRecord:
         return FileRecord(
             path="docs/doc.pdf",
             absolute_path=str(path),
@@ -157,15 +159,20 @@ def test_parser_versions_changed_output(tmp_path: Path) -> None:
             mtime=1.0,
             first_seen_at=datetime.now(timezone.utc),
             last_seen_at=datetime.now(timezone.utc),
+            version=version,
         )
 
-    Parser(output_dir=output).parse_one(record())
+    first = Parser(output_dir=output).parse_one(record())
     _build_pdf(tmp_path / "docs" / "doc.pdf", "second text")
-    result = Parser(output_dir=output).parse_one(record())
+    second = Parser(output_dir=output).parse_one(
+        record(version=first.version)
+    )
 
-    dest = output / "docs" / "doc.md"
+    dest = output / "docs" / "doc.txt"
     assert "second text" in dest.read_text(encoding="utf-8")
-    assert "first text" in (output / "docs" / "doc.v1.md").read_text(encoding="utf-8")
-    assert result.stage_outputs["parser"]["previous_version"] == str(
-        output / "docs" / "doc.v1.md"
+    assert "first text" in (output / "docs" / "doc.v1.txt").read_text(encoding="utf-8")
+    assert second.version == 2
+    assert second.stage_outputs["parser"]["version"] == 2
+    assert second.stage_outputs["parser"]["previous_version"] == str(
+        output / "docs" / "doc.v1.txt"
     )

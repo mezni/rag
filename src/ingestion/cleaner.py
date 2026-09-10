@@ -1,13 +1,15 @@
 """
-Pure domain logic for cleaning parser output files. Currently the only
-cleanup is collapsing runs of newlines — more cleanups can be layered
-in here later. No Stage or pipeline-context imports.
+Pure domain logic for cleaning parser output files. The cleaner runs
+markitdown over each parser artifact (.txt) and writes the resulting
+markdown (.md) in the same directory. No Stage or pipeline-context
+imports.
 """
 from __future__ import annotations
 
-import re
+import io
 from pathlib import Path
 
+from markitdown import MarkItDown
 from pydantic import BaseModel
 
 from src.config.logger import get_logger
@@ -15,12 +17,25 @@ from src.models.pipeline_context import FileRecord
 
 logger = get_logger(__name__)
 
-_MULTI_NEWLINE = re.compile(r"\n{2,}")
+_markitdown = MarkItDown()
 
 
-def normalize_newlines(text: str) -> str:
-    """Collapse runs of multiple newlines into a single newline."""
-    return _MULTI_NEWLINE.sub("\n", text)
+def to_markdown(txt: Path) -> str | None:
+    """Convert a text file to markdown via markitdown. None on failure.
+
+    The extracted text is HTML-ish (bold labels come out as <b>…</b>),
+    so it is fed to markitdown as HTML: tags become real markdown
+    (**…**) instead of leaking through literally.
+    """
+    try:
+        text = txt.read_text(encoding="utf-8")
+        doc = _markitdown.convert_stream(
+            io.BytesIO(text.encode("utf-8")), file_extension=".html"
+        )
+        return doc.text_content
+    except Exception as exc:
+        logger.warning(f"cleaner: markitdown failed for {txt}: {exc}")
+        return None
 
 
 class CleanerResult(BaseModel):
@@ -34,13 +49,15 @@ class Cleaner:
             path = record.stage_outputs.get("parser", {}).get("processed_path")
             if not path:
                 continue
-            file = Path(path)
-            if not file.exists():
+            txt = Path(path)
+            if not txt.exists():
                 continue
-            text = file.read_text(encoding="utf-8")
-            normalized = normalize_newlines(text)
-            if normalized != text:
-                file.write_text(normalized, encoding="utf-8")
-                result.cleaned += 1
-                logger.info(f"cleaner: normalized newlines in {file}")
+            content = to_markdown(txt)
+            if content is None:
+                continue
+            md = txt.with_suffix(".md")
+            md.write_text(content, encoding="utf-8")
+            record.stage_outputs["cleaner"] = {"version": record.version}
+            result.cleaned += 1
+            logger.info(f"cleaner: converted {txt} -> {md}")
         return result
