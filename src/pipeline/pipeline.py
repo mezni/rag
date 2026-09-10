@@ -46,12 +46,13 @@ class Pipeline(BaseModel):
             raise ValueError("stage names must be unique")
         return stages
 
-    def run(self, input_dir: str) -> PipelineContext:
+    def run(self, input_dir: str, output_dir: str | None = None) -> PipelineContext:
         state = self.state_store.load()
         run = PipelineRun(
             run_id=str(uuid.uuid4()),
             started_at=datetime.now(timezone.utc),
             input_dir=input_dir,
+            output_dir=output_dir or "",
         )
         state.runs.append(run)
 

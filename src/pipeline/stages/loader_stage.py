@@ -23,7 +23,11 @@ class LoaderStage(Stage):
 
     def run(self, context: PipelineContext) -> PipelineContext:
         run = context.run
-        loader = Loader(input_dir=run.input_dir, glob_pattern=self.glob_pattern)
+        loader = Loader(
+            input_dir=run.input_dir,
+            glob_pattern=self.glob_pattern,
+            output_dir=run.output_dir or None,
+        )
         result = loader.run(context.state)
 
         context.state = result.state

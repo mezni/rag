@@ -14,10 +14,19 @@ from src.pipeline.state_store import StateStore
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Run the RAG ingestion pipeline")
-    parser.add_argument("--input-dir", required=True, help="directory to scan")
+    parser.add_argument(
+        "--input-dir",
+        default="data/raw",
+        help="directory to scan (default: %(default)s)",
+    )
+    parser.add_argument(
+        "--output-dir",
+        default="data/processed",
+        help="directory structure to mirror from input (default: %(default)s)",
+    )
     parser.add_argument(
         "--state",
-        default=".rag/state.json",
+        default="data/state/state.json",
         help="path to persisted pipeline state (default: %(default)s)",
     )
     parser.add_argument(
@@ -42,7 +51,7 @@ def main() -> None:
         state_store=StateStore(args.state),
         max_runs=args.max_runs,
     )
-    pipeline.run(args.input_dir)
+    pipeline.run(args.input_dir, args.output_dir)
 
 
 if __name__ == "__main__":

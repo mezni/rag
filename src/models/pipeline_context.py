@@ -48,6 +48,7 @@ class PipelineRun(BaseModel):
     finished_at: datetime | None = None
     failed: bool = False
     input_dir: str
+    output_dir: str = ""
     files_scanned: int = 0
     files_new: int = 0
     files_updated: int = 0

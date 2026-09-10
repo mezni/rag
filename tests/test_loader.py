@@ -128,3 +128,27 @@ def test_loader_result_defaults(tmp_path: Path) -> None:
     assert result.updated == 0
     assert result.unchanged == 0
     assert result.deleted == 0
+
+
+def test_loader_creates_missing_dirs_without_copying_files(tmp_path: Path) -> None:
+    _write(tmp_path / "raw", "a.md", "hello")
+    _write(tmp_path / "raw" / "sub", "dir/b.txt", "world")
+    output = tmp_path / "processed"
+
+    Loader(
+        input_dir=tmp_path / "raw",
+        output_dir=output,
+    ).run(PipelineState())
+
+    assert (output / "sub" / "dir").is_dir()
+    assert not (output / "a.md").exists()
+    assert not (output / "sub" / "dir" / "b.txt").exists()
+
+
+def test_loader_does_not_copy_without_output_dir(tmp_path: Path) -> None:
+    _write(tmp_path, "a.md", "hello")
+    output = tmp_path / "processed"
+
+    Loader(input_dir=tmp_path).run(PipelineState())
+
+    assert not output.exists()

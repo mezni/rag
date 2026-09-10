@@ -26,6 +26,7 @@ class LoaderResult(BaseModel):
 class Loader(BaseModel):
     input_dir: Path
     glob_pattern: str = "**/*"
+    output_dir: Path | None = None
 
     def run(self, state: PipelineState) -> LoaderResult:
         input_dir = self.input_dir
@@ -47,6 +48,10 @@ class Loader(BaseModel):
             stat = path.stat()
             seen.add(rel)
             scanned += 1
+
+            if self.output_dir is not None:
+                rel_dir = path.relative_to(input_dir).parent
+                (self.output_dir / rel_dir).mkdir(parents=True, exist_ok=True)
 
             record = known.get(rel)
             if record is None:
