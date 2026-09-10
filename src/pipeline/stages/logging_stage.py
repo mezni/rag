@@ -4,6 +4,7 @@ run's starting conditions (known files and their statuses) and hands
 the context to the next stage untouched. Timing per stage is handled
 by the Pipeline engine, not here.
 """
+
 from __future__ import annotations
 
 from collections import Counter

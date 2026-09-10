@@ -8,11 +8,12 @@ LoggingStage in the stage list — that way every stage gets it for
 free, and you can't forget to slot a logging stage in when you add
 the 5th one.
 """
+
 from __future__ import annotations
 
 import time
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -59,7 +60,7 @@ class Pipeline(BaseModel):
 
         run = PipelineRun(
             run_id=str(uuid.uuid4()),
-            started_at=datetime.now(timezone.utc),
+            started_at=datetime.now(UTC),
             input_dir=input_dir,
             output_dir=output_dir or "",
         )
@@ -95,12 +96,12 @@ class Pipeline(BaseModel):
                     "a stage replaced PipelineContext.run; stages must mutate "
                     "the existing run in place"
                 )
-            run.finished_at = datetime.now(timezone.utc)
+            run.finished_at = datetime.now(UTC)
             self._finalize(context, previous_files)
             self._persist(state)
         except Exception:
             run.failed = True
-            run.finished_at = datetime.now(timezone.utc)
+            run.finished_at = datetime.now(UTC)
             self._persist(state)
             logger.exception("Pipeline run failed")
             raise
@@ -112,7 +113,9 @@ class Pipeline(BaseModel):
         )
         return context
 
-    def _finalize(self, context: PipelineContext, previous_files: dict[str, Any]) -> None:
+    def _finalize(
+        self, context: PipelineContext, previous_files: dict[str, Any]
+    ) -> None:
         if not previous_files:
             logger.info("first run: nothing to clean up from a previous run")
             return
@@ -149,5 +152,5 @@ class Pipeline(BaseModel):
 
     def _persist(self, state: PipelineState) -> None:
         if self.max_runs and len(state.runs) > self.max_runs:
-            state.runs = state.runs[-self.max_runs:]
+            state.runs = state.runs[-self.max_runs :]
         self.state_store.save(state)

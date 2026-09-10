@@ -2,6 +2,7 @@
 Thin orchestration stage: runs the Cleaner over the files the parser
 just produced. All substantive logic lives in src/ingestion/cleaner.py.
 """
+
 from __future__ import annotations
 
 from src.config.logger import get_logger

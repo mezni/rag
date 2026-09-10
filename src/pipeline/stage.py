@@ -9,6 +9,7 @@ This constraint is what keeps the Pipeline engine able to just loop
 over a list of stages without knowing anything about what each one
 does.
 """
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
@@ -20,5 +21,4 @@ class Stage(ABC):
     name: str = "unnamed_stage"
 
     @abstractmethod
-    def run(self, context: PipelineContext) -> PipelineContext:
-        ...
+    def run(self, context: PipelineContext) -> PipelineContext: ...

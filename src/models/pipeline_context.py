@@ -3,16 +3,17 @@ Pure data contracts. No behavior lives here — persistence is in
 src/pipeline/state_store.py, and anything that mutates these belongs
 in a Stage.
 """
+
 from __future__ import annotations
 
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
 
-class FileStatus(str, Enum):
+class FileStatus(StrEnum):
     NEW = "new"
     UPDATED = "updated"
     UNCHANGED = "unchanged"

@@ -7,6 +7,7 @@ There is exactly one state file: every run appends its own PipelineRun
 (including the files it discovered) to state.runs, so a single
 state.json holds the full history.
 """
+
 from __future__ import annotations
 
 import os
@@ -20,8 +21,7 @@ _SUPPORTED_VERSION = 1
 def _ensure_supported_version(state: PipelineState) -> PipelineState:
     if state.version != _SUPPORTED_VERSION:
         raise ValueError(
-            f"unsupported state version {state.version}, expected "
-            f"{_SUPPORTED_VERSION}"
+            f"unsupported state version {state.version}, expected {_SUPPORTED_VERSION}"
         )
     return state
 

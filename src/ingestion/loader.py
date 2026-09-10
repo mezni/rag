@@ -3,9 +3,10 @@ Pure domain logic for scanning an input dir and classifying files
 against the previous run's file records. No Stage or pipeline-context
 imports.
 """
+
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from pydantic import BaseModel
@@ -34,7 +35,7 @@ class Loader(BaseModel):
         if not input_dir.is_dir():
             raise ValueError(f"input dir does not exist: {input_dir}")
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         files: dict[str, FileRecord] = {}
         to_process: list[FileRecord] = []
 

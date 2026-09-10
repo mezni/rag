@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from pydantic import ValidationError
@@ -15,7 +15,7 @@ from src.pipeline.state_store import StateStore
 
 
 def _ts() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _make_file(path: str = "a.md") -> FileRecord:

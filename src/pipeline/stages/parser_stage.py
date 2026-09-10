@@ -4,6 +4,7 @@ narrows the list to those that parsed cleanly. Files that failed to
 parse stay in persisted state (with the error recorded) but are not
 passed downstream.
 """
+
 from __future__ import annotations
 
 from src.config.logger import get_logger
@@ -29,8 +30,6 @@ class ParserStage(Stage):
         ]
         dropped = len(records) - len(parsed)
         if dropped:
-            logger.warning(
-                f"parser: dropped {dropped} file(s) with no usable text"
-            )
+            logger.warning(f"parser: dropped {dropped} file(s) with no usable text")
         context.files_to_process = parsed
         return context

@@ -102,7 +102,19 @@ uv run python app/main.py \
 
 # tests
 uv run pytest
+
+# lint + format
+uv run ruff check .
+uv run ruff format .
 ```
+
+## CI/CD
+
+GitHub Actions under `.github/workflows/`:
+
+- **`ci.yml`** — on every push/PR across Python 3.12 and 3.13: `ruff` lint + format check, then `uv run pytest`.
+- **`cd.yml`** — on tags `v*`, runs the tests, builds the package (`uv build` →
+  wheel + sdist) and attaches the artifacts to a GitHub release.
 
 ## Conventions
 

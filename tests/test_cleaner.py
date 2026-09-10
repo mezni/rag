@@ -1,7 +1,5 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-
-import pytest
 
 from src.ingestion.cleaner import Cleaner, CleanerResult, to_markdown
 from src.models.pipeline_context import FileRecord
@@ -14,11 +12,13 @@ def _make_record(path: str, processed_path: str | None, version: int = 1) -> Fil
         size_bytes=3,
         hash="abc",
         mtime=1.0,
-        first_seen_at=datetime.now(timezone.utc),
-        last_seen_at=datetime.now(timezone.utc),
+        first_seen_at=datetime.now(UTC),
+        last_seen_at=datetime.now(UTC),
         version=version,
     )
-    record.stage_outputs["parser"] = {"processed_path": processed_path} if processed_path else {}
+    record.stage_outputs["parser"] = (
+        {"processed_path": processed_path} if processed_path else {}
+    )
     return record
 
 

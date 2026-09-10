@@ -3,6 +3,7 @@ Thin orchestration stage: scans input_dir via the Loader and wires
 the result back into the pipeline context's current run. All
 substantive logic lives in src/ingestion/loader.py.
 """
+
 from __future__ import annotations
 
 from src.config.logger import get_logger

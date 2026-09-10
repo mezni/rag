@@ -1,4 +1,5 @@
 """CLI entry point. Wires stages into a Pipeline and runs it once."""
+
 from __future__ import annotations
 
 import argparse

@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 from src.ingestion.loader import Loader, LoaderResult
-from src.models.pipeline_context import FileRecord, FileStatus
+from src.models.pipeline_context import FileStatus
 
 
 def _write(tmp_path: Path, name: str, content: str) -> Path:

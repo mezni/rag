@@ -4,6 +4,7 @@ markitdown over each parser artifact (.txt) and writes the resulting
 markdown (.md) in the same directory. No Stage or pipeline-context
 imports.
 """
+
 from __future__ import annotations
 
 import io

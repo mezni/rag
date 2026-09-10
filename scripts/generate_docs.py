@@ -26,9 +26,9 @@ import logging
 import os
 import re
 import time
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Sequence
 
 import httpx
 from dotenv import load_dotenv
@@ -38,14 +38,12 @@ from reportlab.lib.pagesizes import LETTER
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import inch
 from reportlab.platypus import (
-    PageBreak,
     Paragraph,
     SimpleDocTemplate,
     Spacer,
     Table,
     TableStyle,
 )
-
 
 # ============================================================================
 # PATHS
@@ -109,10 +107,7 @@ load_dotenv(ENV_PATH)
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 
 if not OPENROUTER_API_KEY:
-    raise SystemExit(
-        f"OPENROUTER_API_KEY is missing. "
-        f"Add it to {ENV_PATH}."
-    )
+    raise SystemExit(f"OPENROUTER_API_KEY is missing. Add it to {ENV_PATH}.")
 
 
 # ============================================================================
@@ -203,17 +198,13 @@ class LLMClient:
                 choices = data.get("choices", [])
 
                 if not choices:
-                    raise RuntimeError(
-                        "OpenRouter returned no choices."
-                    )
+                    raise RuntimeError("OpenRouter returned no choices.")
 
                 message = choices[0].get("message", {})
                 content = message.get("content")
 
                 if not content:
-                    raise RuntimeError(
-                        "OpenRouter returned empty content."
-                    )
+                    raise RuntimeError("OpenRouter returned empty content.")
 
                 usage = data.get("usage", {})
 
@@ -229,16 +220,14 @@ class LLMClient:
                 # rather than retrying.
                 if status in {400, 401, 402, 403, 404}:
                     logger.error(
-                        "OpenRouter request failed: "
-                        "status=%s body=%s",
+                        "OpenRouter request failed: status=%s body=%s",
                         status,
                         body,
                     )
                     raise
 
                 logger.warning(
-                    "OpenRouter request failed "
-                    "(attempt %d/%d, status=%s): %s",
+                    "OpenRouter request failed (attempt %d/%d, status=%s): %s",
                     attempt,
                     retries,
                     status,
@@ -249,8 +238,7 @@ class LLMClient:
                 last_error = exc
 
                 logger.warning(
-                    "OpenRouter timeout "
-                    "(attempt %d/%d)",
+                    "OpenRouter timeout (attempt %d/%d)",
                     attempt,
                     retries,
                 )
@@ -259,8 +247,7 @@ class LLMClient:
                 last_error = exc
 
                 logger.warning(
-                    "OpenRouter HTTP error "
-                    "(attempt %d/%d): %s",
+                    "OpenRouter HTTP error (attempt %d/%d): %s",
                     attempt,
                     retries,
                     exc,
@@ -270,8 +257,7 @@ class LLMClient:
                 last_error = exc
 
                 logger.warning(
-                    "OpenRouter response error "
-                    "(attempt %d/%d): %s",
+                    "OpenRouter response error (attempt %d/%d): %s",
                     attempt,
                     retries,
                     exc,
@@ -280,16 +266,14 @@ class LLMClient:
             if attempt < retries:
                 time.sleep(RETRY_DELAY_SECONDS)
 
-        raise RuntimeError(
-            "OpenRouter generation failed."
-        ) from last_error
+        raise RuntimeError("OpenRouter generation failed.") from last_error
 
     def close(self) -> None:
         """Close the HTTP client."""
 
         self.client.close()
 
-    def __enter__(self) -> "LLMClient":
+    def __enter__(self) -> LLMClient:
         return self
 
     def __exit__(self, *_args) -> None:
@@ -305,7 +289,6 @@ DOCUMENT_CATALOG: list[KnowledgeMetadata] = [
     # ------------------------------------------------------------------------
     # BILLING
     # ------------------------------------------------------------------------
-
     KnowledgeMetadata(
         title="Billing Dispute Policy",
         doc_id="AW-BIL-001",
@@ -379,11 +362,9 @@ DOCUMENT_CATALOG: list[KnowledgeMetadata] = [
             "return windows, inspection, and refund processing."
         ),
     ),
-
     # ------------------------------------------------------------------------
     # MOBILE
     # ------------------------------------------------------------------------
-
     KnowledgeMetadata(
         title="Mobile Contract Policy",
         doc_id="AW-MOB-001",
@@ -492,11 +473,9 @@ DOCUMENT_CATALOG: list[KnowledgeMetadata] = [
             "claims, exclusions, replacement, and customer responsibilities."
         ),
     ),
-
     # ------------------------------------------------------------------------
     # ROAMING
     # ------------------------------------------------------------------------
-
     KnowledgeMetadata(
         title="Roaming Policy",
         doc_id="AW-ROM-001",
@@ -533,11 +512,9 @@ DOCUMENT_CATALOG: list[KnowledgeMetadata] = [
             "including availability, restrictions, billing, and escalation."
         ),
     ),
-
     # ------------------------------------------------------------------------
     # CUSTOMER
     # ------------------------------------------------------------------------
-
     KnowledgeMetadata(
         title="Customer Verification Policy",
         doc_id="AW-CUS-001",
@@ -610,11 +587,9 @@ DOCUMENT_CATALOG: list[KnowledgeMetadata] = [
             "redemption, expiration, and account requirements."
         ),
     ),
-
     # ------------------------------------------------------------------------
     # COMPLIANCE
     # ------------------------------------------------------------------------
-
     KnowledgeMetadata(
         title="KYC Policy",
         doc_id="AW-CMP-001",
@@ -958,9 +933,7 @@ class DocumentGenerator:
                 section,
             )
 
-            generated_sections.append(
-                (section, content)
-            )
+            generated_sections.append((section, content))
 
         overview = self._generate_section(
             metadata,
@@ -1166,8 +1139,7 @@ class DocumentGenerator:
         total_tokens = usage.get("total_tokens", 0)
 
         logger.info(
-            "LLM usage | doc=%s | operation=%s | "
-            "prompt=%s | completion=%s | total=%s",
+            "LLM usage | doc=%s | operation=%s | prompt=%s | completion=%s | total=%s",
             doc_id,
             operation,
             prompt_tokens,
@@ -1601,27 +1573,16 @@ class PDFRenderer:
             if not line or "|" not in line:
                 break
 
-            if (
-                len(rows) == 1
-                and re.match(
-                    r"^\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)+\|?$",
-                    line,
-                )
+            if len(rows) == 1 and re.match(
+                r"^\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)+\|?$",
+                line,
             ):
                 index += 1
                 continue
 
-            cells = [
-                cell.strip()
-                for cell in line.strip("|").split("|")
-            ]
+            cells = [cell.strip() for cell in line.strip("|").split("|")]
 
-            rows.append(
-                [
-                    self._format_inline(cell)
-                    for cell in cells
-                ]
-            )
+            rows.append([self._format_inline(cell) for cell in cells])
 
             index += 1
 
@@ -1702,11 +1663,7 @@ class PDFRenderer:
     def _escape(text: str) -> str:
         """Escape text for ReportLab Paragraph."""
 
-        return (
-            text.replace("&", "&amp;")
-            .replace("<", "&lt;")
-            .replace(">", "&gt;")
-        )
+        return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
     def _format_inline(self, text: str) -> str:
         """Convert basic Markdown inline formatting to ReportLab HTML."""
@@ -1776,18 +1733,14 @@ def save_document(
 ) -> tuple[Path, Path | None]:
     """Save Markdown optionally and always save PDF."""
 
-    output_dir = document_output_dir(
-        document.metadata
-    )
+    output_dir = document_output_dir(document.metadata)
 
     output_dir.mkdir(
         parents=True,
         exist_ok=True,
     )
 
-    base_name = document_filename(
-        document.metadata
-    )
+    base_name = document_filename(document.metadata)
 
     md_path = output_dir / f"{base_name}.md"
     pdf_path = output_dir / f"{base_name}.pdf"
@@ -1827,9 +1780,7 @@ def select_documents(
         category = category.lower()
 
         documents = [
-            document
-            for document in documents
-            if document.category.lower() == category
+            document for document in documents if document.category.lower() == category
         ]
 
     if limit is not None:
@@ -1848,8 +1799,7 @@ def parse_args() -> argparse.Namespace:
 
     parser = argparse.ArgumentParser(
         description=(
-            "Generate Aether Wireless telecom policy "
-            "knowledge-base documents."
+            "Generate Aether Wireless telecom policy knowledge-base documents."
         )
     )
 
@@ -1938,9 +1888,7 @@ def main() -> int:
             )
 
             try:
-                document = generator.generate(
-                    metadata
-                )
+                document = generator.generate(metadata)
 
                 pdf_path, md_path = save_document(
                     document,
@@ -1973,8 +1921,7 @@ def main() -> int:
     elapsed = time.perf_counter() - start_time
 
     logger.info(
-        "Generation completed | "
-        "successful=%d | failed=%d | elapsed=%.2fs",
+        "Generation completed | successful=%d | failed=%d | elapsed=%.2fs",
         successful,
         failed,
         elapsed,

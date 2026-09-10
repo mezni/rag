@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -53,8 +53,8 @@ def _make_record(path: Path) -> FileRecord:
         size_bytes=path.stat().st_size,
         hash="unused",
         mtime=1.0,
-        first_seen_at=datetime.now(timezone.utc),
-        last_seen_at=datetime.now(timezone.utc),
+        first_seen_at=datetime.now(UTC),
+        last_seen_at=datetime.now(UTC),
     )
 
 
@@ -122,8 +122,8 @@ def test_parser_writes_text_to_output_dir(tmp_path: Path) -> None:
         size_bytes=path.stat().st_size,
         hash="unused",
         mtime=1.0,
-        first_seen_at=datetime.now(timezone.utc),
-        last_seen_at=datetime.now(timezone.utc),
+        first_seen_at=datetime.now(UTC),
+        last_seen_at=datetime.now(UTC),
     )
     output = tmp_path / "processed"
 
@@ -157,16 +157,14 @@ def test_parser_versions_changed_output(tmp_path: Path) -> None:
             size_bytes=path.stat().st_size,
             hash="unused",
             mtime=1.0,
-            first_seen_at=datetime.now(timezone.utc),
-            last_seen_at=datetime.now(timezone.utc),
+            first_seen_at=datetime.now(UTC),
+            last_seen_at=datetime.now(UTC),
             version=version,
         )
 
     first = Parser(output_dir=output).parse_one(record())
     _build_pdf(tmp_path / "docs" / "doc.pdf", "second text")
-    second = Parser(output_dir=output).parse_one(
-        record(version=first.version)
-    )
+    second = Parser(output_dir=output).parse_one(record(version=first.version))
 
     dest = output / "docs" / "doc.txt"
     assert "second text" in dest.read_text(encoding="utf-8")

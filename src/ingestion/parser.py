@@ -3,9 +3,10 @@ Pure domain logic for turning files into raw text. No Stage or
 pipeline-context imports here — keeps this module unit-testable on
 its own.
 """
+
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from llama_index.core import SimpleDirectoryReader
@@ -50,7 +51,7 @@ class Parser:
         self.output_dir = Path(output_dir) if output_dir else None
 
     def parse_one(self, record: FileRecord) -> FileRecord:
-        record.last_processed_at = datetime.now(timezone.utc)
+        record.last_processed_at = datetime.now(UTC)
         try:
             content = parse_file(record.absolute_path)
         except (UnsupportedFormatError, ParseError) as exc:
