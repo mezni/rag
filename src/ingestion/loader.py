@@ -5,9 +5,10 @@ against persisted state. No Stage or pipeline-context imports.
 from __future__ import annotations
 
 import hashlib
-from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
+
+from pydantic import BaseModel
 
 from src.models.pipeline_context import FileRecord, FileStatus, PipelineState
 
@@ -22,21 +23,19 @@ def _hash_file(path: Path) -> str:
     return digest.hexdigest()
 
 
-@dataclass
-class LoaderResult:
+class LoaderResult(BaseModel):
     files_to_process: list[FileRecord]
     state: PipelineState
-    scanned: int
-    new: int
-    updated: int
-    unchanged: int
-    deleted: int
+    scanned: int = 0
+    new: int = 0
+    updated: int = 0
+    unchanged: int = 0
+    deleted: int = 0
 
 
-class Loader:
-    def __init__(self, input_dir: str | Path, glob_pattern: str = "**/*"):
-        self.input_dir = Path(input_dir)
-        self.glob_pattern = glob_pattern
+class Loader(BaseModel):
+    input_dir: Path
+    glob_pattern: str = "**/*"
 
     def run(self, state: PipelineState) -> LoaderResult:
         input_dir = self.input_dir

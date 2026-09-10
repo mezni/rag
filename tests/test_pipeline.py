@@ -3,7 +3,12 @@ from datetime import datetime, timezone
 import pytest
 from pydantic import ValidationError
 
-from src.models.pipeline_context import FileRecord, FileStatus, PipelineContext
+from src.models.pipeline_context import (
+    FileRecord,
+    FileStatus,
+    PipelineContext,
+    PipelineState,
+)
 from src.pipeline.pipeline import Pipeline
 from src.pipeline.stage import Stage
 from src.pipeline.state_store import StateStore
@@ -50,6 +55,14 @@ class LosingStage(Stage):
 
     def run(self, context: PipelineContext) -> PipelineContext:
         return None
+
+
+class SwappingStage(Stage):
+    name = "swap"
+
+    def run(self, context: PipelineContext) -> PipelineContext:
+        context.state = PipelineState()
+        return context
 
 
 def _make_pipeline(tmp_path, stages, **kwargs) -> Pipeline:
@@ -115,6 +128,14 @@ def test_max_runs_trims_old_runs(tmp_path) -> None:
         pipeline.run("/tmp/in")
     state = pipeline.state_store.load()
     assert len(state.runs) == 2
+
+
+def test_stage_replacing_state_raises_and_preserves_original(tmp_path) -> None:
+    pipeline = _make_pipeline(tmp_path, [SwappingStage()])
+    with pytest.raises(RuntimeError, match="replaced PipelineContext.state"):
+        pipeline.run("/tmp/in")
+    state = pipeline.state_store.load()
+    assert state.last_run().failed is True
 
 
 def test_state_store_round_trip(tmp_path) -> None:

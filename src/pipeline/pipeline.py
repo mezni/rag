@@ -75,6 +75,16 @@ class Pipeline(BaseModel):
                 duration = time.monotonic() - start
                 run.stage_timings_seconds[stage.name] = round(duration, 4)
                 logger.info(f"<- stage '{stage.name}' finished in {duration:.3f}s")
+            if context.state is not state:
+                raise RuntimeError(
+                    "a stage replaced PipelineContext.state; stages must mutate "
+                    "the existing state in place"
+                )
+            if context.run is not run:
+                raise RuntimeError(
+                    "a stage replaced PipelineContext.run; stages must mutate "
+                    "the existing run in place"
+                )
             run.finished_at = datetime.now(timezone.utc)
             self._persist(state)
         except Exception:

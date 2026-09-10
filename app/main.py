@@ -7,12 +7,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from src.config.logger import get_logger
 from src.pipeline.pipeline import Pipeline
 from src.pipeline.stages import LoaderStage, LoggingStage
 from src.pipeline.state_store import StateStore
-
-logger = get_logger(__name__)
 
 
 def build_parser() -> argparse.ArgumentParser:
