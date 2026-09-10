@@ -69,7 +69,7 @@ When a file present in the previous run is gone from disk, the loader marks it
 ## Layout
 
 ```
-app/main.py                  CLI entry point (wires the 4 stages)
+app/main.py                  CLI entry point (wires the 5 stages)
 src/config/logger.py         logging setup
 src/ingestion/               pure domain logic (no Stage/pipeline imports)
   loader.py                  scan + classify, mirrors dirs
@@ -110,6 +110,9 @@ uv run pytest
 # lint + format
 uv run ruff check .
 uv run ruff format .
+
+# dashboard
+uv run streamlit run app/dashboard.py
 ```
 
 ## CI/CD
