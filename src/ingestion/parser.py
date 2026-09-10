@@ -8,19 +8,15 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from pathlib import Path
 
+from llama_index.core import SimpleDirectoryReader
+from llama_index.readers.file import PDFReader
+
 from src.config.logger import get_logger
 from src.models.pipeline_context import FileRecord
 
 logger = get_logger(__name__)
 
-SUPPORTED_EXTENSIONS = {
-    ".json",
-    ".md",
-    ".rst",
-    ".txt",
-    ".yaml",
-    ".yml",
-}
+SUPPORTED_EXTENSIONS = {".pdf"}
 
 
 class UnsupportedFormatError(Exception):
@@ -28,7 +24,7 @@ class UnsupportedFormatError(Exception):
 
 
 class ParseError(Exception):
-    """Raised when a supported file cannot be read or decoded."""
+    """Raised when a supported file cannot be parsed."""
 
 
 def is_supported(path: str | Path) -> bool:
@@ -40,11 +36,13 @@ def parse_file(path: str | Path) -> str:
     if not is_supported(file):
         raise UnsupportedFormatError(f"unsupported extension: {file.suffix}")
     try:
-        return file.read_text(encoding="utf-8")
-    except OSError as exc:
-        raise ParseError(f"could not read {file}: {exc}") from exc
-    except UnicodeDecodeError as exc:
-        raise ParseError(f"could not decode {file} as utf-8: {exc}") from exc
+        documents = SimpleDirectoryReader(
+            input_files=[str(file)],
+            file_extractor={".pdf": PDFReader()},
+        ).load_data()
+    except Exception as exc:
+        raise ParseError(f"could not parse {file}: {exc}") from exc
+    return "\n\n".join(document.text or "" for document in documents)
 
 
 class Parser:
