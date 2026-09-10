@@ -2,13 +2,13 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from src.chunking.chunker import Chunker, ChunkFile, chunk_text
-from src.chunking.chunker_stage import ChunkerStage
 from src.models.pipeline_context import (
     FileRecord,
     PipelineContext,
     PipelineRun,
     PipelineState,
 )
+from src.pipeline.stages import ChunkerStage
 
 
 def _make_record(path: str = "docs/doc.pdf", content: str = "Hello PDF.") -> FileRecord:

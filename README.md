@@ -64,7 +64,7 @@ single file doubles as history and diff baseline (no `state_last.json`).
 
 When a file present in the previous run is gone from disk, the loader marks it
 `DELETED`. On that transition the engine removes the processed artifacts (both
-`.txt` and `.md`) plus their `v*` archives from the output dir.
+`.txt`, `.md`, and `.chunks.json`) plus their `v*` archives from the output dir.
 
 ## Layout
 
@@ -76,9 +76,8 @@ src/ingestion/               pure domain logic (no Stage/pipeline imports)
   parser.py                  PDF → text, versioning
   cleaner.py                 markitdown conversion, markdown output
   hashing.py                 file hashing
-src/chunking/                 chunking domain logic + its stage
+src/chunking/                 chunking domain logic (no Stage imports)
   chunker.py                 llama-index SentenceSplitter → <.chunks.json>
-  chunker_stage.py           orchestrates the chunker over parser output
 src/models/pipeline_context.py   data contracts (FileRecord, PipelineRun, …)
 src/pipeline/
   pipeline.py                engine: loop, timing, identity guards, failure handling
